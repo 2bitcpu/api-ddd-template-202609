@@ -1,0 +1,290 @@
+openapi: 3.0.3
+
+info:
+  title: Todo API
+  version: 1.0.0
+  description: Todo management and authentication API
+
+servers:
+  - url: http://localhost:3000
+
+tags:
+  - name: Auth
+    description: Authentication
+  - name: Todo
+    description: Todo management
+
+paths:
+  /service/auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Sign up
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              account: testuser
+              password: P@55w0rd
+              confirmPassword: P@55w0rd
+      responses:
+        '200':
+          description: Signup succeeded
+        '400':
+          description: Invalid request
+        '409':
+          description: Account already exists
+
+  /service/auth/signin:
+    post:
+      tags:
+        - Auth
+      summary: Sign in
+      operationId: signin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SigninRequest'
+            example:
+              account: testuser
+              password: P@55w0rd
+      responses:
+        '200':
+          description: Signin succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigninResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIs...
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication failed
+
+  /service/todo:
+    put:
+      tags:
+        - Todo
+      summary: Create a Todo
+      operationId: createTodo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoRequest'
+            example:
+              dueDate: '2026-09-12T00:00:00Z'
+              title: test title
+              description: test description
+      responses:
+        '200':
+          description: Todo created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+              example:
+                id: 01234567-89ab-cdef-0123-456789abcdef
+                dueDate: '2026-09-12T00:00:00Z'
+                title: test title
+                description: test description
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+
+    post:
+      tags:
+        - Todo
+      summary: Update a Todo
+      operationId: updateTodo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdateRequest'
+            example:
+              id: 01234567-89ab-cdef-0123-456789abcdef
+              dueDate: '2026-09-13T00:00:00Z'
+              title: change title
+              description: change description
+      responses:
+        '200':
+          description: Todo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid request
+        '401':
+          description: Authentication required
+        '404':
+          description: Todo not found
+
+  /service/todo/list:
+    get:
+      tags:
+        - Todo
+      summary: Get Todo list
+      operationId: getTodoList
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Todo list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+        '401':
+          description: Authentication required
+
+  /service/todo/{id}:
+    delete:
+      tags:
+        - Todo
+      summary: Delete a Todo
+      operationId: deleteTodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Todo ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Todo deleted
+        '401':
+          description: Authentication required
+        '404':
+          description: Todo not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SignupRequest:
+      type: object
+      required:
+        - account
+        - password
+        - confirmPassword
+      properties:
+        account:
+          type: string
+          example: testuser
+        password:
+          type: string
+          format: password
+          example: P@55w0rd
+        confirmPassword:
+          type: string
+          format: password
+          example: P@55w0rd
+
+    SigninRequest:
+      type: object
+      required:
+        - account
+        - password
+      properties:
+        account:
+          type: string
+          example: testuser
+        password:
+          type: string
+          format: password
+          example: P@55w0rd
+
+    SigninResponse:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: JWT access token
+
+    TodoRequest:
+      type: object
+      required:
+        - dueDate
+        - title
+        - description
+      properties:
+        dueDate:
+          type: string
+          format: date-time
+          example: '2026-09-12T00:00:00Z'
+        title:
+          type: string
+          example: test title
+        description:
+          type: string
+          example: test description
+
+    TodoUpdateRequest:
+      type: object
+      required:
+        - id
+        - dueDate
+        - title
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 01234567-89ab-cdef-0123-456789abcdef
+        dueDate:
+          type: string
+          format: date-time
+          example: '2026-09-13T00:00:00Z'
+        title:
+          type: string
+          example: change title
+        description:
+          type: string
+          example: change description
+
+    Todo:
+      type: object
+      required:
+        - id
+        - dueDate
+        - title
+        - description
+      properties:
+        id:
+          type: string
+          format: uuid
+        dueDate:
+          type: string
+          format: date-time
+        title:
+          type: string
+        description:
+          type: string

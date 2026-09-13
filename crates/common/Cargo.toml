@@ -1,0 +1,11 @@
+[package]
+name = "common"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+argh.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+tracing-subscriber.workspace = true
+uuid25.workspace = true

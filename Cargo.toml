@@ -1,0 +1,40 @@
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+resolver = "2"
+members = ["crates/application","crates/common", "crates/domain", "crates/infrastructure", "crates/presentation", "web-api"]
+
+[workspace.dependencies]
+argh = { version = "0.1.19", default-features = false, features = ["help"] }
+argon2 = { version = "0.6.0", default-features = false, features = ["alloc", "password-hash", "getrandom"] }
+async-trait = { version = "0.1.92", default-features = false }
+axum = { version = "0.8.9", features = ["macros"] }
+axum-extra = { version = "0.12.6", default-features = false, features = ["typed-header"] }
+chrono = { version = "0.4.45", default-features = false, features = ["serde", "now"] }
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto"] }
+serde = { version = "1.0.229", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
+serde_yaml = { version = "0.9.34", default-features = false }
+tokio = { version = "1.53.1", default-features = false, features = ["macros", "rt-multi-thread", "signal", "fs", "io-util", "sync", "time"] }
+tower = { version = "0.5.3", default-features = false, features = ["timeout"] }
+tower-http = { version = "0.7.1", default-features = false, features = ["fs", "cors"] }
+tracing = { version = "0.1.44", default-features = false }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "env-filter"] }
+uuid25 = { version = "0.3.5", default-features = false, features = ["gen"] }
+validator = { version = "0.21.0", default-features = false, features = ["derive"] }
+
+common = { path = "crates/common" }
+domain = { path = "crates/domain" }
+infrastructure = { path = "crates/infrastructure" }
+application = { path = "crates/application" }
+presentation = { path = "crates/presentation" }
+
+[profile.release]
+opt-level = "z"
+debug = false
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
