@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct UserModel {
     pub account: String,
     pub email: Option<String>,
+    pub name: Option<String>,
     pub password: String,
     pub jwt_id: Option<String>,
 }

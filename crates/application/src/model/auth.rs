@@ -19,6 +19,9 @@ pub struct SignupRequestDto {
     #[validate(email)]
     #[serde(default)]
     pub email: Option<String>,
+    #[serde(deserialize_with = "option_trim_string")]
+    #[serde(default)]
+    pub name: Option<String>,
     #[serde(deserialize_with = "trim_string")]
     #[validate(custom(function = "validate_password"))]
     pub password: String,
@@ -43,9 +46,26 @@ impl SignupRequestDto {
         Ok(UserModel {
             account: self.account.clone(),
             email: self.email.clone(),
+            name: self.name.clone(),
             password: password::hash(self.password.clone()).await?,
             jwt_id: None,
         })
+    }
+}
+
+pub struct AuthUserDto {
+    pub account: String,
+    pub email: Option<String>,
+    pub name: Option<String>,
+}
+
+impl From<UserModel> for AuthUserDto {
+    fn from(user: UserModel) -> Self {
+        Self {
+            account: user.account,
+            email: user.email,
+            name: user.name,
+        }
     }
 }
 
@@ -58,11 +78,50 @@ pub struct SigninRequestDto {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct PasswardChangeRequestDto {
+    #[serde(deserialize_with = "trim_string")]
+    pub now_password: String,
+    #[serde(deserialize_with = "trim_string")]
+    #[validate(custom(function = "validate_password"))]
+    pub password: String,
+    #[serde(deserialize_with = "trim_string")]
+    pub confirm_password: String,
+}
+
+impl PasswardChangeRequestDto {
+    pub fn custom_validate(&self) -> Result<(), ValidationErrors> {
+        let _ = &self.validate()?;
+
+        if self.password != self.confirm_password {
+            let mut errors = ValidationErrors::new();
+            errors.add("confirm_password", ValidationError::new("password_match"));
+            return Err(errors);
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoChangeRequestDto {
+    #[serde(deserialize_with = "trim_string")]
+    pub password: String,
+    #[serde(deserialize_with = "option_trim_string")]
+    pub name: Option<String>,
+    #[serde(deserialize_with = "option_trim_string")]
+    #[validate(email)]
+    pub email: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthResponseDto {
     pub account: String,
     pub email: Option<String>,
+    pub name: Option<String>,
     pub token: String,
 }
 

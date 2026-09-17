@@ -16,6 +16,8 @@ pub struct AuthUser {
     pub account: String,
     #[allow(unused)]
     pub email: Option<String>,
+    #[allow(unused)]
+    pub name: Option<String>,
 }
 
 use application::Applications;
@@ -46,13 +48,17 @@ pub async fn auth_guard(
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
     let token = bearer.token();
 
-    let (account, email) = module
+    let user = module
         .auth()
         .authenticate(token.to_string())
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-    request.extensions_mut().insert(AuthUser { account, email });
+    request.extensions_mut().insert(AuthUser {
+        account: user.account,
+        email: user.email,
+        name: user.name,
+    });
 
     Ok(next.run(request).await)
 }

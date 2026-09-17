@@ -26,6 +26,14 @@ curl -s -X POST -H 'content-type: application/json' -d '{"account":"testuser","p
 ```
 
 ```
+curl -i -X POST -H "Authorization: Bearer $(cat token.txt)" -H "Content-Type: application/json" -d '{"nowPassword":"P@55w0rd","password":"N3wP@55w0rd","confirmPassword":"N3wP@55w0rd"}' http://localhost:3000/service/auth/passwd
+```
+
+```
+curl -i -X POST -H "Authorization: Bearer $(cat token.txt)" -H "Content-Type: application/json" -d '{"password":"N3wP@55w0rd","name":"Test User","email":"testuser@example.com"}' http://localhost:3000/service/auth/info
+```
+
+```
 curl -i -X PUT -H "Authorization: Bearer $(cat token.txt)" -H "Content-Type: application/json"  -d '{"dueDate":"2026-09-12T00:00:00Z","title":"test title","description":"test description"}' http://localhost:3000/service/todo
 ```
 

@@ -35,9 +35,15 @@ pub fn create_router(usecases: Arc<dyn Applications>) -> Router {
         auth_router = auth_router.route("/auth/signup", post(auth::signup));
     }
 
+    let auth_protected_router = Router::new()
+        .route("/auth/passwd", post(auth::password_change))
+        .route("/auth/info", post(auth::info_change))
+        .layer(from_fn_with_state(usecases.clone(), auth_guard));
+
     let mut app = Router::new()
         .nest("/service", todo_router)
         .nest("/service", auth_router)
+        .nest("/service", auth_protected_router)
         .with_state(usecases);
 
     if !config().server.cors.is_empty() {

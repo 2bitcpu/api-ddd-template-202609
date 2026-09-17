@@ -1,15 +1,16 @@
-use axum::extract::State;
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::{
     TypedHeader,
     headers::{Authorization, authorization::Bearer},
 };
 use std::sync::Arc;
 
-use crate::error::ApiError;
+use crate::{error::ApiError, middleware::auth::AuthUser};
 use application::{
     Applications,
-    model::auth::{SigninRequestDto, SignupRequestDto},
+    model::auth::{
+        InfoChangeRequestDto, PasswardChangeRequestDto, SigninRequestDto, SignupRequestDto,
+    },
 };
 
 pub async fn signup(
@@ -40,5 +41,26 @@ pub async fn signout(
             .signout(bearer.token().to_string())
             .await?;
     }
+    Ok(StatusCode::OK.into_response())
+}
+
+pub async fn password_change(
+    State(applications): State<Arc<dyn Applications>>,
+    Extension(auth): Extension<AuthUser>,
+    Json(dto): Json<PasswardChangeRequestDto>,
+) -> Result<impl IntoResponse, ApiError> {
+    applications
+        .auth()
+        .password_change(dto, &auth.account)
+        .await?;
+    Ok(StatusCode::OK.into_response())
+}
+
+pub async fn info_change(
+    State(applications): State<Arc<dyn Applications>>,
+    Extension(auth): Extension<AuthUser>,
+    Json(dto): Json<InfoChangeRequestDto>,
+) -> Result<impl IntoResponse, ApiError> {
+    applications.auth().info_change(dto, &auth.account).await?;
     Ok(StatusCode::OK.into_response())
 }
