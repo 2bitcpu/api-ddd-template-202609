@@ -24,7 +24,7 @@ impl AuthUseCase {
 
         self.repositories
             .user()
-            .save(dto.to_model().await?)
+            .create(dto.to_model().await?)
             .await
             .map_err(|error| match error {
                 DomainError::Conflict(_) => {
@@ -40,7 +40,7 @@ impl AuthUseCase {
         let mut user = self
             .repositories
             .user()
-            .find(&dto.account)
+            .read(&dto.account)
             .await?
             .ok_or_else(|| AppError::Unauthorized("Incorrect account or password.".to_string()))?;
 
@@ -65,7 +65,7 @@ impl AuthUseCase {
         let user = self
             .repositories
             .user()
-            .replace(user)
+            .update(user)
             .await
             .map_err(|ex| AppError::Unexpected(ex.into()))?;
 
@@ -88,7 +88,7 @@ impl AuthUseCase {
         let user = self
             .repositories
             .user()
-            .find(&account)
+            .read(&account)
             .await?
             .ok_or_else(|| AppError::Unauthorized("Invalid token".to_string()))?;
 
@@ -106,11 +106,11 @@ impl AuthUseCase {
             Err(error) => return Err(AppError::Unexpected(error.into())),
         };
 
-        if let Some(mut user) = self.repositories.user().find(&dto.account).await? {
+        if let Some(mut user) = self.repositories.user().read(&dto.account).await? {
             user.jwt_id = None;
             self.repositories
                 .user()
-                .replace(user)
+                .update(user)
                 .await
                 .map_err(|ex| AppError::Unexpected(ex.into()))?;
         }
@@ -128,7 +128,7 @@ impl AuthUseCase {
         let mut user = self
             .repositories
             .user()
-            .find(account)
+            .read(account)
             .await?
             .ok_or_else(|| AppError::Unauthorized("Incorrect account or password.".to_string()))?;
 
@@ -142,7 +142,7 @@ impl AuthUseCase {
 
         self.repositories
             .user()
-            .replace(user)
+            .update(user)
             .await
             .map_err(|ex| AppError::Unexpected(ex.into()))?;
 
@@ -159,7 +159,7 @@ impl AuthUseCase {
         let mut user = self
             .repositories
             .user()
-            .find(account)
+            .read(account)
             .await?
             .ok_or_else(|| AppError::Unauthorized("Incorrect account or password.".to_string()))?;
 
@@ -174,7 +174,7 @@ impl AuthUseCase {
 
         self.repositories
             .user()
-            .replace(user)
+            .update(user)
             .await
             .map_err(|ex| AppError::Unexpected(ex.into()))?;
 

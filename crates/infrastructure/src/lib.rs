@@ -1,4 +1,3 @@
-mod model;
 mod repositories;
 mod repository;
 

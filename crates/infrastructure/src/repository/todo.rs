@@ -1,157 +1,106 @@
 use async_trait::async_trait;
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    sync::Arc,
-};
-use tokio::{
-    sync::{RwLock, mpsc},
-    time::{Duration, timeout},
-};
+use fjall::Keyspace;
 
-use common::config;
 use domain::{DomainError, TodoRepository, model::TodoModel};
 
-use crate::model::todo::TodoData;
-use crate::repository::{constant::TODO_FILE_NAME, worker::Command};
+use crate::repository::wrapper::run_blocking;
 
 pub struct TodoRepositoryImpl {
-    data: Arc<RwLock<TodoData>>,
-    tx: mpsc::Sender<Command>,
-    lock_timeout: Duration,
-}
-
-fn load() -> TodoData {
-    let path = config().storage.data_dir.join(TODO_FILE_NAME);
-
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
-        Err(_) => return TodoData::new(),
-    };
-
-    match serde_json::from_str::<HashMap<String, TodoModel>>(&text) {
-        Ok(map) => TodoData { map, dirty: false },
-        Err(_) => TodoData::new(),
-    }
+    keyspace: Keyspace,
 }
 
 impl TodoRepositoryImpl {
-    pub fn new(tx: mpsc::Sender<Command>) -> Self {
-        Self {
-            data: Arc::new(RwLock::new(load())),
-            tx,
-            lock_timeout: Duration::from_millis(config().server.lock_timeout_millis),
-        }
+    pub fn new(keyspace: Keyspace) -> Self {
+        Self { keyspace }
     }
 }
 
 #[async_trait]
 impl TodoRepository for TodoRepositoryImpl {
-    async fn save(&self, todo: TodoModel) -> Result<TodoModel, DomainError> {
-        let mut data = timeout(self.lock_timeout, self.data.write())
-            .await
-            .map_err(|_| DomainError::Busy())?;
+    async fn create(&self, model: TodoModel) -> Result<TodoModel, DomainError> {
+        let keyspace = self.keyspace.clone();
 
-        match data.map.entry(todo.id.clone()) {
-            Entry::Vacant(entry) => {
-                entry.insert(todo.clone());
-                if !data.dirty {
-                    data.dirty = true;
-                    drop(data);
-                    let _ = self.commit().await;
-                }
-                Ok(todo)
+        run_blocking(move || {
+            let key = model.id.clone();
+            let value = serde_json::to_vec(&model)?;
+
+            if keyspace.contains_key(&key)? {
+                return Err(DomainError::Conflict(format!("todo already exists: {key:?}")).into());
             }
-            Entry::Occupied(_) => Err(DomainError::Conflict(format!(
-                "todo already exists: {:#?}",
-                todo.id
-            ))),
-        }
+
+            keyspace.insert(key, value)?;
+
+            Ok(model)
+        })
+        .await
     }
 
-    async fn find(&self, id: &str) -> Result<Option<TodoModel>, DomainError> {
-        let data = self.data.read().await;
-        Ok(data.map.get(id).cloned())
+    async fn read(&self, key: &str) -> Result<Option<TodoModel>, DomainError> {
+        let keyspace = self.keyspace.clone();
+        let key = key.to_owned();
+
+        run_blocking(move || match keyspace.get(key)? {
+            Some(s) => Ok(Some(serde_json::from_slice(&s)?)),
+            None => Ok(None),
+        })
+        .await
     }
 
-    async fn replace(&self, todo: TodoModel) -> Result<TodoModel, DomainError> {
-        let mut data = timeout(self.lock_timeout, self.data.write())
-            .await
-            .map_err(|_| DomainError::Busy())?;
+    async fn update(&self, model: TodoModel) -> Result<TodoModel, DomainError> {
+        let keyspace = self.keyspace.clone();
 
-        match data.map.entry(todo.id.clone()) {
-            Entry::Vacant(_) => Err(DomainError::NotFound(format!(
-                "todo not found: {:#?}",
-                todo.id
-            ))),
-            Entry::Occupied(mut entry) => {
-                entry.insert(todo.clone());
-                if !data.dirty {
-                    data.dirty = true;
-                    drop(data);
-                    let _ = self.commit().await;
-                }
-                Ok(todo)
+        run_blocking(move || {
+            let key = model.id.clone();
+            let value = serde_json::to_vec(&model)?;
+
+            if !keyspace.contains_key(&key)? {
+                return Err(DomainError::NotFound(format!("todo not found: {key:?}")).into());
             }
-        }
+
+            keyspace.insert(key, value)?;
+
+            Ok(model)
+        })
+        .await
     }
 
-    async fn remove(&self, id: &str) -> Result<(), DomainError> {
-        let mut data = timeout(self.lock_timeout, self.data.write())
-            .await
-            .map_err(|_| DomainError::Busy())?;
+    async fn delete(&self, key: &str) -> Result<(), DomainError> {
+        let keyspace = self.keyspace.clone();
+        let key = key.to_owned();
 
-        match data.map.entry(id.to_string()) {
-            Entry::Vacant(_) => Err(DomainError::NotFound(format!("todo not found: {:#?}", id))),
-            Entry::Occupied(entry) => {
-                entry.remove();
-                if !data.dirty {
-                    data.dirty = true;
-                    drop(data);
-                    let _ = self.commit().await;
-                }
-                Ok(())
+        run_blocking(move || {
+            if !keyspace.contains_key(&key)? {
+                return Err(DomainError::NotFound(format!("todo not found: {:#?}", key)).into());
             }
-        }
+
+            keyspace.remove(key)?;
+
+            Ok(())
+        })
+        .await
     }
 
     async fn list(&self, owner: &str) -> Result<Vec<TodoModel>, DomainError> {
-        let data = timeout(self.lock_timeout, self.data.read())
-            .await
-            .map_err(|_| DomainError::Busy())?;
+        let keyspace = self.keyspace.clone();
+        let owner = owner.to_owned();
 
-        let mut todos: Vec<TodoModel> = data
-            .map
-            .values()
-            .filter(|todo| todo.owner == owner)
-            .cloned()
-            .collect();
+        run_blocking(move || {
+            let mut todos = Vec::new();
 
-        todos.sort_by_key(|a| std::cmp::Reverse(a.due_date));
+            for entry in keyspace.iter() {
+                let (_, value) = entry.into_inner()?;
 
-        Ok(todos)
-    }
+                let todo: TodoModel = serde_json::from_slice(&value)?;
 
-    async fn commit(&self) -> Result<(), DomainError> {
-        let data = timeout(self.lock_timeout, self.data.read())
-            .await
-            .map_err(|_| DomainError::Busy())?;
-
-        if !data.dirty {
-            return Ok(());
-        }
-        drop(data);
-
-        let data = Arc::clone(&self.data);
-
-        match self.tx.try_send(Command::CommitTodo(data)) {
-            Ok(_) => {}
-            Err(mpsc::error::TrySendError::Full(_)) => {
-                tracing::warn!("queue full; todo commit deferred");
+                if todo.owner == owner {
+                    todos.push(todo);
+                }
             }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                tracing::warn!("todo worker channel closed");
-            }
-        }
-        Ok(())
+
+            todos.sort_by_key(|todo| std::cmp::Reverse(todo.due_date));
+
+            Ok(todos)
+        })
+        .await
     }
 }

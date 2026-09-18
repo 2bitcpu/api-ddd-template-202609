@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use application::ApplicationsImpl;
 use common::{BoxError, config};
-use domain::Repositories;
 use infrastructure::RepositoriesImpl;
 use presentation::create_router;
 
@@ -12,7 +11,7 @@ async fn main() -> Result<(), BoxError> {
         tracing_subscriber::fmt().with_env_filter(level).init();
     }
 
-    let repos = Arc::new(RepositoriesImpl::new());
+    let repos = Arc::new(RepositoriesImpl::new()?);
     let applications = ApplicationsImpl::new(repos.clone());
 
     let app = create_router(Arc::new(applications));
@@ -28,10 +27,7 @@ async fn main() -> Result<(), BoxError> {
 
     tracing::info!("Shutting down gracefully, please wait.");
     if let Some(repos) = Arc::into_inner(repos) {
-        repos.flush().await;
-        let _ = repos.user().commit().await;
-        let _ = repos.todo().commit().await;
-        repos.flush().await;
+        let _ = repos.flush().await.map_err(|ex| eprintln!("{:?}", ex));
     }
     tracing::info!("Shutdown complete.");
 
