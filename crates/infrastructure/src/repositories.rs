@@ -1,48 +1,38 @@
-use tokio::{
-    sync::{mpsc, oneshot},
-    time::{Duration, timeout},
-};
-
-use common::config;
+use common::{BoxError, config};
 use domain::{
     Repositories, {TodoRepository, UserRepository},
 };
+use fjall::{Database, KeyspaceCreateOptions, PersistMode};
 
-use crate::repository::{Command, TodoRepositoryImpl, UserRepositoryImpl, run_worker};
+use crate::repository::{TodoRepositoryImpl, UserRepositoryImpl, run_blocking};
 
 pub struct RepositoriesImpl {
     todo: TodoRepositoryImpl,
     user: UserRepositoryImpl,
-    tx: mpsc::Sender<Command>,
+    db: Database,
 }
 
 impl RepositoriesImpl {
-    pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel(config().storage.queue_size);
-        let _worker = tokio::spawn(run_worker(rx));
+    pub fn new() -> Result<Self, BoxError> {
+        let db = Database::builder(&config().storage.data_dir).open()?;
+        let user_ks = db.keyspace("user", KeyspaceCreateOptions::default)?;
+        let todo_ks = db.keyspace("todo", KeyspaceCreateOptions::default)?;
 
-        Self {
-            todo: TodoRepositoryImpl::new(tx.clone()),
-            user: UserRepositoryImpl::new(tx.clone()),
-            tx,
-        }
+        Ok(Self {
+            todo: TodoRepositoryImpl::new(todo_ks),
+            user: UserRepositoryImpl::new(user_ks),
+            db,
+        })
     }
 
-    pub async fn flush(&self) {
-        let (tx_done, rx_done) = oneshot::channel();
-        if let Err(e) = self.tx.send(Command::Flush(tx_done)).await {
-            tracing::error!("flush command send failed: {e}");
-            return;
-        }
-        match timeout(Duration::from_secs(25), rx_done).await {
-            Ok(Ok(())) => {}
-            Ok(Err(_)) => {
-                tracing::error!("flush receiver closed unexpectedly");
-            }
-            Err(_) => {
-                tracing::error!("flush timed out after 25s");
-            }
-        }
+    pub async fn flush(&self) -> Result<(), BoxError> {
+        let db = self.db.clone();
+        run_blocking(move || {
+            db.persist(PersistMode::SyncAll)?;
+            Ok(())
+        })
+        .await
+        .map_err(|error| Box::new(error) as BoxError)
     }
 }
 

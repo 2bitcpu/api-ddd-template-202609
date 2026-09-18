@@ -1,8 +1,9 @@
-mod constant;
+mod error;
 mod todo;
 mod user;
-mod worker;
+mod wrapper;
 
+pub use error::RepositoryError;
 pub use todo::TodoRepositoryImpl;
 pub use user::UserRepositoryImpl;
-pub use worker::{Command, run_worker};
+pub use wrapper::run_blocking;

@@ -20,10 +20,11 @@ use tower_http::{
 #[allow(dead_code)]
 pub fn create_router(usecases: Arc<dyn Applications>) -> Router {
     let todo_router = Router::new()
-        .route("/todo", put(todo::entry))
-        .route("/todo", post(todo::replace))
-        .route("/todo/{id}", delete(todo::remove))
-        .route("/todo", get(todo::list))
+        .route("/todo", put(todo::create))
+        .route("/todo", post(todo::update))
+        .route("/todo/list", get(todo::list))
+        .route("/todo/{id}", delete(todo::delete))
+        .route("/todo/{id}", get(todo::read))
         .layer(from_fn_with_state(usecases.clone(), auth_guard));
 
     let mut auth_router = Router::new()

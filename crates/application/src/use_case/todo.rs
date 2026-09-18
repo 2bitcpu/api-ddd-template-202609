@@ -13,7 +13,7 @@ impl TodoUseCase {
         Self { repositories }
     }
 
-    pub async fn entry(
+    pub async fn create(
         &self,
         dto: TodoEntryRequestDto,
         account: String,
@@ -21,14 +21,14 @@ impl TodoUseCase {
         let todo = self
             .repositories
             .todo()
-            .save(dto.to_model(account))
+            .create(dto.to_model(account))
             .await
             .map_err(AppError::from)?;
 
         Ok(TodoResponseDto::from(todo))
     }
 
-    pub async fn replace(
+    pub async fn update(
         &self,
         dto: TodoReplacceRequestDto,
         account: String,
@@ -36,7 +36,7 @@ impl TodoUseCase {
         let todo = self
             .repositories
             .todo()
-            .find(&dto.id)
+            .read(&dto.id)
             .await?
             .ok_or_else(|| AppError::DataNotFound(format!("todo not found: {:#?}", dto.id)))?;
 
@@ -47,18 +47,34 @@ impl TodoUseCase {
         let todo = self
             .repositories
             .todo()
-            .replace(dto.to_model(account))
+            .update(dto.to_model(account))
             .await
             .map_err(AppError::from)?;
 
         Ok(TodoResponseDto::from(todo))
     }
 
-    pub async fn remove(&self, id: String, account: String) -> Result<(), AppError> {
+    pub async fn read(
+        &self,
+        id: String,
+        account: String,
+    ) -> Result<Option<TodoResponseDto>, AppError> {
+        let todo = self.repositories.todo().read(&id).await?;
+
+        if let Some(t) = &todo {
+            if t.owner != account {
+                return Err(AppError::Forbidden("Permission denied.".to_string()));
+            }
+        }
+
+        Ok(todo.map(TodoResponseDto::from))
+    }
+
+    pub async fn delete(&self, id: String, account: String) -> Result<(), AppError> {
         let todo = self
             .repositories
             .todo()
-            .find(&id)
+            .read(&id)
             .await?
             .ok_or_else(|| AppError::DataNotFound(format!("todo not found: {:#?}", id)))?;
 
@@ -68,7 +84,7 @@ impl TodoUseCase {
 
         self.repositories
             .todo()
-            .remove(&id)
+            .delete(&id)
             .await
             .map_err(AppError::from)
     }

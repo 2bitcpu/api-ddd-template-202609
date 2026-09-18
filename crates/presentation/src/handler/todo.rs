@@ -13,30 +13,39 @@ use axum::{
 };
 use std::sync::Arc;
 
-pub async fn entry(
+pub async fn create(
     State(applications): State<Arc<dyn Applications>>,
     Extension(auth): Extension<AuthUser>,
     Json(dto): Json<TodoEntryRequestDto>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let res = applications.todo().entry(dto, auth.account).await?;
+    let res = applications.todo().create(dto, auth.account).await?;
     Ok((StatusCode::CREATED, Json(res)).into_response())
 }
 
-pub async fn replace(
+pub async fn update(
     State(applications): State<Arc<dyn Applications>>,
     Extension(auth): Extension<AuthUser>,
     Json(dto): Json<TodoReplacceRequestDto>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let res = applications.todo().replace(dto, auth.account).await?;
+    let res = applications.todo().update(dto, auth.account).await?;
     Ok(Json(res).into_response())
 }
 
-pub async fn remove(
+pub async fn read(
     State(applications): State<Arc<dyn Applications>>,
     Extension(auth): Extension<AuthUser>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    applications.todo().remove(id, auth.account).await?;
+    let res = applications.todo().read(id, auth.account).await?;
+    Ok(Json(res).into_response())
+}
+
+pub async fn delete(
+    State(applications): State<Arc<dyn Applications>>,
+    Extension(auth): Extension<AuthUser>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    applications.todo().delete(id, auth.account).await?;
     Ok(StatusCode::OK.into_response())
 }
 
