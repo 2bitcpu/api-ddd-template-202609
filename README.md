@@ -2,8 +2,7 @@
 
 DDDで実装してます。  
 
-データは永続化されません。  
-サーバーを停止すればデータは消えます。
+永続化にはfjallを使っています。
 
 ```
 docker build -t rust-web-api .
@@ -47,6 +46,10 @@ curl -i -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 
 ```
 curl -i -H "Authorization: Bearer $TOKEN" http://localhost:3000/service/todo/list
+```
+
+```
+curl -i -X GET -H "Authorization: Bearer $TOKEN" http://localhost:3000/service/todo/$ID
 ```
 
 ```
