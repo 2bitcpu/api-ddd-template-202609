@@ -16,12 +16,12 @@ impl TodoUseCase {
     pub async fn create(
         &self,
         dto: TodoEntryRequestDto,
-        account: String,
+        owner: String,
     ) -> Result<TodoResponseDto, AppError> {
         let todo = self
             .repositories
             .todo()
-            .create(dto.to_model(account))
+            .create(dto.to_model(owner))
             .await
             .map_err(AppError::from)?;
 
@@ -31,7 +31,7 @@ impl TodoUseCase {
     pub async fn update(
         &self,
         dto: TodoReplacceRequestDto,
-        account: String,
+        owner: String,
     ) -> Result<TodoResponseDto, AppError> {
         let todo = self
             .repositories
@@ -40,14 +40,14 @@ impl TodoUseCase {
             .await?
             .ok_or_else(|| AppError::DataNotFound(format!("todo not found: {:#?}", dto.id)))?;
 
-        if todo.owner != account {
+        if todo.owner != owner {
             return Err(AppError::Forbidden("Permission denied.".to_string()));
         }
 
         let todo = self
             .repositories
             .todo()
-            .update(dto.to_model(account))
+            .update(dto.to_model(owner))
             .await
             .map_err(AppError::from)?;
 
@@ -57,12 +57,12 @@ impl TodoUseCase {
     pub async fn read(
         &self,
         id: String,
-        account: String,
+        owner: String,
     ) -> Result<Option<TodoResponseDto>, AppError> {
         let todo = self.repositories.todo().read(&id).await?;
 
         if let Some(t) = &todo {
-            if t.owner != account {
+            if t.owner != owner {
                 return Err(AppError::Forbidden("Permission denied.".to_string()));
             }
         }

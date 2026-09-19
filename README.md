@@ -34,15 +34,15 @@ curl -i -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
 ```
 
 ```
-curl -i -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"dueDate":"2026-09-12T00:00:00Z","title":"test title","description":"test description"}' http://localhost:3000/service/todo
+curl -i -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"due":"2026-09-12T00:00:00Z","title":"test title","note":"test note"}' http://localhost:3000/service/todo
 ```
 
 ```
-ID=$(curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"dueDate":"2026-09-12T00:00:00Z","title":"test title","description":"test description"}' http://localhost:3000/service/todo|jq -r '.id')
+ID=$(curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"due":"2026-09-12T00:00:00Z","title":"test title","note":"test note"}' http://localhost:3000/service/todo|jq -r '.id')
 ```
 
 ```
-curl -i -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"id":"'"$ID"'","dueDate":"2026-09-13T00:00:00Z","title":"change title","description":"change description"}' http://localhost:3000/service/todo
+curl -i -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -d '{"id":"'"$ID"'","due":"2026-09-13T00:00:00Z","title":"change title","note":"change note"}' http://localhost:3000/service/todo
 ```
 
 ```

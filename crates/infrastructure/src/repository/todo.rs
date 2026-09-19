@@ -3,7 +3,7 @@ use fjall::Keyspace;
 
 use domain::{DomainError, TodoRepository, model::TodoModel};
 
-use crate::repository::wrapper::run_blocking;
+use super::wrapper::{run_blocking, unexpected};
 
 pub struct TodoRepositoryImpl {
     keyspace: Keyspace,
@@ -24,11 +24,11 @@ impl TodoRepository for TodoRepositoryImpl {
             let key = model.id.clone();
             let value = serde_json::to_vec(&model)?;
 
-            if keyspace.contains_key(&key)? {
+            if keyspace.contains_key(&key).map_err(unexpected)? {
                 return Err(DomainError::Conflict(format!("todo already exists: {key:?}")).into());
             }
 
-            keyspace.insert(key, value)?;
+            keyspace.insert(key, value).map_err(unexpected)?;
 
             Ok(model)
         })
@@ -39,7 +39,7 @@ impl TodoRepository for TodoRepositoryImpl {
         let keyspace = self.keyspace.clone();
         let key = key.to_owned();
 
-        run_blocking(move || match keyspace.get(key)? {
+        run_blocking(move || match keyspace.get(key).map_err(unexpected)? {
             Some(s) => Ok(Some(serde_json::from_slice(&s)?)),
             None => Ok(None),
         })
@@ -53,11 +53,11 @@ impl TodoRepository for TodoRepositoryImpl {
             let key = model.id.clone();
             let value = serde_json::to_vec(&model)?;
 
-            if !keyspace.contains_key(&key)? {
+            if !keyspace.contains_key(&key).map_err(unexpected)? {
                 return Err(DomainError::NotFound(format!("todo not found: {key:?}")).into());
             }
 
-            keyspace.insert(key, value)?;
+            keyspace.insert(key, value).map_err(unexpected)?;
 
             Ok(model)
         })
@@ -69,11 +69,11 @@ impl TodoRepository for TodoRepositoryImpl {
         let key = key.to_owned();
 
         run_blocking(move || {
-            if !keyspace.contains_key(&key)? {
+            if !keyspace.contains_key(&key).map_err(unexpected)? {
                 return Err(DomainError::NotFound(format!("todo not found: {:#?}", key)).into());
             }
 
-            keyspace.remove(key)?;
+            keyspace.remove(key).map_err(unexpected)?;
 
             Ok(())
         })
@@ -88,7 +88,7 @@ impl TodoRepository for TodoRepositoryImpl {
             let mut todos = Vec::new();
 
             for entry in keyspace.iter() {
-                let (_, value) = entry.into_inner()?;
+                let (_, value) = entry.into_inner().map_err(unexpected)?;
 
                 let todo: TodoModel = serde_json::from_slice(&value)?;
 
@@ -97,7 +97,7 @@ impl TodoRepository for TodoRepositoryImpl {
                 }
             }
 
-            todos.sort_by_key(|todo| std::cmp::Reverse(todo.due_date));
+            todos.sort_by_key(|todo| std::cmp::Reverse(todo.due));
 
             Ok(todos)
         })

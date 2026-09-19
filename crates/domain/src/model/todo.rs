@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct TodoModel {
     pub id: String,
     pub owner: String,
-    pub due_date: DateTime<Utc>,
-    pub is_done: bool,
+    pub due: DateTime<Utc>,
+    pub done: bool,
     pub title: String,
-    pub description: String,
+    pub note: String,
 }

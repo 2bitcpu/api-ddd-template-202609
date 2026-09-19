@@ -28,11 +28,12 @@ impl RepositoriesImpl {
     pub async fn flush(&self) -> Result<(), BoxError> {
         let db = self.db.clone();
         run_blocking(move || {
-            db.persist(PersistMode::SyncAll)?;
+            db.persist(PersistMode::SyncAll)
+                .map_err(|e| BoxError::from(e))?;
             Ok(())
         })
         .await
-        .map_err(|error| Box::new(error) as BoxError)
+        .map_err(|e| Box::new(e) as BoxError)
     }
 }
 
