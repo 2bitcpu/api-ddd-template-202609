@@ -61,9 +61,9 @@ async def create_todo(
             "Authorization": f"Bearer {token}",
         },
         json={
-            "dueDate": "2026-09-12T00:00:00Z",
+            "due": "2026-09-12T00:00:00Z",
             "title": f"{account} todo {number}",
-            "description": f"load test {account} {number}",
+            "note": f"load test {account} {number}",
         },
     )
 
